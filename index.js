@@ -3,6 +3,10 @@ const plays = JSON.parse(await readFile("./plays.json"))
 const invoices = JSON.parse(await readFile("./invoices.json"))
 
 function statement(invoice, plays) {
+    return renderPlainText(invoice, plays)
+}
+
+function renderPlainText(invoice, plays) {
     let result = `청구 내역 (고객명: ${invoice.customer})\n`
     for (let perf of invoice.performances) {       
         result += ` ${playFor(perf).name}: ${usd(amountFor(perf, playFor(perf)))} (${perf.audience}석)\n`
