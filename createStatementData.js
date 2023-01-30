@@ -1,6 +1,43 @@
 import {readFile} from 'fs/promises'
 const plays = JSON.parse(await readFile("./plays.json"))
 
+export default function createStatementData(invoice) {
+    const result = {}
+    result.customer = invoice.customer
+    result.performances = invoice.performances.map(enrichPerformance)
+    result.totalAmount = totalAmount(result)
+    result.totalVolumeCredits = totalVolumeCredits(result)
+    return result
+}
+
+function enrichPerformance(aPerformance) {
+    const calculator = createPerformanceCalculator(aPerformance, playFor(aPerformance))
+    const result = Object.assign({}, aPerformance)
+    result.play = playFor(result)
+    result.amount = calculator.amount
+    result.volumeCredits = calculator.volumeCredits
+    return result
+}
+
+function playFor(aPerformance) {
+    return plays[aPerformance.playID]
+}
+
+function totalVolumeCredits(data) {
+    return data.performances.reduce((total, p) => total + p.volumeCredits, 0)
+}
+
+function totalAmount(data) {
+    return data.performances.reduce((total, p) => total + p.amount, 0)
+}
+
+function createPerformanceCalculator(aPerformance, aPlay) {
+    switch (aPlay.type) {
+        case "tragedy": return new TragedyCalculator(aPerformance, aPlay);
+        case "comedy": return new ComedyCalculator(aPerformance, aPlay);
+        default: throw new Error(`알 수 없는 장르: ${aPlay.type}`);
+    }
+}
 class PerformanceCalculator {
     constructor(aPerformance, aPlay) {
         this.performance = aPerformance
@@ -12,20 +49,7 @@ class PerformanceCalculator {
     }
 
     get volumeCredits() {
-        let result = 0
-        result += Math.max(this.performance.audience - 30, 0)
-        if ('comedy' === this.play.type) {
-            result += Math.floor(this.performance.audience / 5)
-        }
-        return result
-    }
-}
-
-function createPerformanceCalculator(aPerformance, aPlay) {
-    switch (aPlay.type) {
-        case "tragedy": return new TragedyCalculator(aPerformance, aPlay);
-        case "comedy": return new ComedyCalculator(aPerformance, aPlay);
-        default: throw new Error(`알 수 없는 장르: ${aPlay.type}`);
+        return Math.max(this.performance.audience - 30, 0)
     }
 }
 
@@ -48,33 +72,8 @@ class ComedyCalculator extends PerformanceCalculator {
         result += 300 * this.performance.audience;
         return result;
     }
-}
 
-export default function createStatementData(invoice) {
-    const statementData = {}
-    statementData.customer = invoice.customer
-    statementData.performances = invoice.performances.map(enrichPerformance)
-    statementData.totalAmount = totalAmount(statementData)
-    statementData.totalVolumeCredits = totalVolumeCredits(statementData)
-    return statementData
-}
-
-function enrichPerformance(aPerformance) {
-    const calculator = createPerformanceCalculator(aPerformance, playFor(aPerformance))
-    const result = Object.assign({}, aPerformance)
-    result.play = playFor(result)
-    result.amount = calculator.amount
-    result.volumeCredits = calculator.volumeCredits
-    return result
-}
-function playFor(aPerformance) {
-    return plays[aPerformance.playID]
-}
-
-function totalVolumeCredits(data) {
-    return data.performances.reduce((total, p) => total + p.volumeCredits, 0)
-}
-
-function totalAmount(data) {
-    return data.performances.reduce((total, p) => total + p.amount, 0)
+    get volumeCredits() {
+        return super.volumeCredits + Math.floor(this.performance.audience / 5);
+    }
 }
